@@ -28,7 +28,7 @@ def drive_auth():
           )
         creds = flow.run_local_server(port=0)
       # Save the credentials for the next run
-        with open("./auth/token.json", "w") as token:
+        with open("./auth/token.json", "w", encoding="utf-8") as token:
             token.write(creds.to_json())
     return creds
 def create_drive_folders():
