@@ -51,3 +51,6 @@ docs/_build/
 
 # Google Auth
 auth/
+
+# Python Virtual Environment
+.venv
