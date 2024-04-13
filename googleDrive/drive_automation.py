@@ -9,6 +9,16 @@ from googleapiclient.errors import HttpError
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
+
+class user_input:
+  def __init__(self, client, sector, project, flights):
+    self.client = client
+    self.sector = sector
+    self.project = project
+    self.flights = flights
+  def __repr__(self):  
+        return "User Input cleint:% s sector:% s project:% s flights:% s  " % (self.client, self.sector, self.project, self.flights) 
+
 def drive_auth():
     """Authenticate with Drive API Project
     """
@@ -31,30 +41,46 @@ def drive_auth():
         with open("./auth/token.json", "w", encoding="utf-8") as token:
             token.write(creds.to_json())
     return creds
+def accept_user_input():
+    """Process user parameters
+    """
+    client = input("Enter Client Name:")
+    print("Client: " + client)
+    sector = input("Sector Name (Construction):")
+    if not sector:
+        sector = "Construction"
+    print("Sector: " + sector)
+    project = input("Enter Project Name:")
+    print("Project: " + project)
+    flights = input("Enter Number of Flights:")
+    print("Flights: " + project)
+    return user_input(client, sector, project, flights)
 def create_drive_folders():
     """Create Drive Folders and sub-directories
     """
-    creds = drive_auth()
-    try:
-        service = build("drive", "v3", credentials=creds)
-        parent_metadata = {
-            "name": "ParentFolder",
-            "mimeType": "application/vnd.google-apps.folder",
-        }
-        # pylint: disable=maybe-no-member
-        parent = service.files().create(body=parent_metadata, fields="id").execute()
-        parent_id = parent.get("id")
-        folder_names = ["ChildFolder1", "ChildFolder2", "ChildFolder3"]
-        for folder in folder_names:
-            child_metadata = {
-                "name": folder,
-                "mimeType": "application/vnd.google-apps.folder",
-                "parents": [parent_id],
-            }
-            service.files().create(body=child_metadata, fields="id").execute()
-    except HttpError as error:
-        print(f"An error occurred creating Folder: {error}")
-        return None
+    user_input = accept_user_input()
+    #print([user_input])
+    # creds = drive_auth()
+    # try:
+    #     service = build("drive", "v3", credentials=creds)
+    #     parent_metadata = {
+    #         "name": "ParentFolder",
+    #         "mimeType": "application/vnd.google-apps.folder",
+    #     }
+    #     # pylint: disable=maybe-no-member
+    #     parent = service.files().create(body=parent_metadata, fields="id").execute()
+    #     parent_id = parent.get("id")
+    #     folder_names = ["ChildFolder1", "ChildFolder2", "ChildFolder3"]
+    #     for folder in folder_names:
+    #         child_metadata = {
+    #             "name": folder,
+    #             "mimeType": "application/vnd.google-apps.folder",
+    #             "parents": [parent_id],
+    #         }
+    #         service.files().create(body=child_metadata, fields="id").execute()
+    # except HttpError as error:
+    #     print(f"An error occurred creating Folder: {error}")
+    #     return None
 
 if __name__ == "__main__":
     create_drive_folders()
