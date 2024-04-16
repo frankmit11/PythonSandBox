@@ -1,5 +1,7 @@
 import os.path
 
+# from pprint import pprint
+# from alive_progress import alive_bar;
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -33,13 +35,12 @@ def drive_auth():
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            print("hey")
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
               "./auth/credentials.json", SCOPES
             )
-        creds = flow.run_local_server(port=0)
+            creds = flow.run_local_server(port=0)
       # Save the credentials for the next run
         with open("./auth/token.json", "w", encoding="utf-8") as token:
             token.write(creds.to_json())
@@ -136,37 +137,73 @@ def create_project(creds, user_input):
     sector_id = sector[0].get("id")
 #   for x in sector:
 #        print(f'Found folder: {x.get("name")}, {x.get("id")}')
-    print(sector_id)
+    try:
+        service = build("drive", "v3", credentials=creds)
+        project_metadata = {
+            "parents": [sector_id],
+            "name": user_input.project,
+            "mimeType": "application/vnd.google-apps.folder",
+        }
+        project = service.files().create(body=project_metadata, fields="id").execute()
+        project_id = project.get("id")
+    except HttpError as error:
+        print(f"An error occurred creating Folder: {error}")
+        return None
+    #create_flights()
+    create_insurance(creds, project_id)
+    create_contract(creds, project_id)
 
-# def create_drive_folders():
-#     """Create Drive Folders and sub-directories
-#     """
-#     user_input = accept_user_input()
-#     #print([user_input])
-#     creds = drive_auth()
-#     try:
-#         service = build("drive", "v3", credentials=creds)
-#         parent_metadata = {
-#             "name": "ParentFolder",
-#             "mimeType": "application/vnd.google-apps.folder",
-#         }
-#         # pylint: disable=maybe-no-member
-#         parent = service.files().create(body=parent_metadata, fields="id").execute()
-#         parent_id = parent.get("id")
-#         folder_names = ["ChildFolder1", "ChildFolder2", "ChildFolder3"]
-#         for folder in folder_names:
-#             child_metadata = {
-#                 "name": folder,
-#                 "mimeType": "application/vnd.google-apps.folder",
-#                 "parents": [parent_id],
-#             }
-#             service.files().create(body=child_metadata, fields="id").execute()
-#     except HttpError as error:
-#         print(f"An error occurred creating Folder: {error}")
-#         return None
+def create_insurance(creds, id):
+    """Create Insurance folder and children folders
+    """
+    try:
+        service = build("drive", "v3", credentials=creds)
+        insurance_metadata = {
+            "parents": [id],
+            "name": "Insurance",
+            "mimeType": "application/vnd.google-apps.folder",
+        }
+        # pylint: disable=maybe-no-member
+        insurance = service.files().create(body=insurance_metadata, fields="id").execute()
+        insurance_id = insurance.get("id")
+        child_names = ["Requirements", "COIs"]
+        for folder in child_names:
+            child_metadata = {
+                "name": folder,
+                "mimeType": "application/vnd.google-apps.folder",
+                "parents": [insurance_id],
+            }
+            service.files().create(body=child_metadata, fields="id").execute()
+    except HttpError as error:
+        print(f"An error occurred creating Folder: {error}")
+        return None
+
+def create_contract(creds, id):
+    """Create contract prep and children folders
+    """
+    try:
+        service = build("drive", "v3", credentials=creds)
+        contract_metadata = {
+            "parents": [id],
+            "name": "Contract Prep",
+            "mimeType": "application/vnd.google-apps.folder",
+        }
+        # pylint: disable=maybe-no-member
+        contract = service.files().create(body=contract_metadata, fields="id").execute()
+        contract_id = contract.get("id")
+        child_names = ["Plans", "Schedule", "Proposal", "Contract"]
+        for folder in child_names:
+            child_metadata = {
+                "name": folder,
+                "mimeType": "application/vnd.google-apps.folder",
+                "parents": [contract_id],
+            }
+            service.files().create(body=child_metadata, fields="id").execute()
+    except HttpError as error:
+        print(f"An error occurred creating Folder: {error}")
+        return None
 
 if __name__ == "__main__":
     creds = drive_auth()
     input_vars = accept_user_input()
     create_project(creds,input_vars)
-    #create_drive_folders()
