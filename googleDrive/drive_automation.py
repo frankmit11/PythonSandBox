@@ -1,9 +1,10 @@
 import os.path
 
 # from pprint import pprint
-# from alive_progress import alive_bar;
+from alive_progress import alive_bar;
 from datetime import datetime
 import calendar
+import sys
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -84,6 +85,9 @@ def get_parent_id(creds, name):
               .execute()
           )
             parent = response.get("files")
+            if not parent:
+                print("ERROR: " + name + " was not found" )
+                sys.exit(1)
             parent_id = parent[0].get("id")
             page_token = response.get("nextPageToken", None)
             parents.extend(response.get("files", []))
@@ -115,8 +119,11 @@ def sub_folder_search(creds, parent_name, sub_folder_name):
                   pageToken=page_token,
               )
               .execute()
-          )
+            )
             sub_folder = response.get("files")
+            if not sub_folder:
+                print("ERROR: " + sub_folder_name + " was not found in " + parent_name)
+                sys.exit(1)
             #   for folder in response.get("files"):
             #     # Process change
             #     print(f'Found folder: {folder.get("name")}, {folder.get("id")}')
@@ -133,12 +140,12 @@ def sub_folder_search(creds, parent_name, sub_folder_name):
 def create_project(creds, user_input):
     """Create Project Folder Function
     """
+    print("Creating Project Metadata....")
     client = sub_folder_search(creds, 'Firstlook Services', user_input.client)
     client_name = client[0].get("name")
     sector = sub_folder_search(creds, client_name, user_input.sector)
     sector_id = sector[0].get("id")
-#   for x in sector:
-#        print(f'Found folder: {x.get("name")}, {x.get("id")}')
+    print("Project Metadata created")
     try:
         service = build("drive", "v3", credentials=creds)
         project_metadata = {
@@ -151,6 +158,7 @@ def create_project(creds, user_input):
     except HttpError as error:
         print(f"An error occurred creating Folder: {error}")
         return None
+    print("Project " + user_input.project + " created")
     create_flights(creds, project_id, user_input.flights, user_input.project)
     create_insurance(creds, project_id)
     create_contract(creds, project_id)
@@ -169,13 +177,15 @@ def create_insurance(creds, id):
         insurance = service.files().create(body=insurance_metadata, fields="id").execute()
         insurance_id = insurance.get("id")
         child_names = ["Requirements", "COIs"]
-        for folder in child_names:
-            child_metadata = {
-                "name": folder,
-                "mimeType": "application/vnd.google-apps.folder",
-                "parents": [insurance_id],
-            }
-            service.files().create(body=child_metadata, fields="id").execute()
+        with alive_bar(len(child_names), title='Creating Insurance Folders...') as bar:
+            for folder in child_names:
+                child_metadata = {
+                   "name": folder,
+                   "mimeType": "application/vnd.google-apps.folder",
+                   "parents": [insurance_id],
+                }
+                service.files().create(body=child_metadata, fields="id").execute()
+                bar()
     except HttpError as error:
         print(f"An error occurred creating Folder: {error}")
         return None
@@ -194,13 +204,15 @@ def create_contract(creds, id):
         contract = service.files().create(body=contract_metadata, fields="id").execute()
         contract_id = contract.get("id")
         child_names = ["Plans", "Schedule", "Proposal", "Contract"]
-        for folder in child_names:
-            child_metadata = {
-                "name": folder,
-                "mimeType": "application/vnd.google-apps.folder",
-                "parents": [contract_id],
-            }
-            service.files().create(body=child_metadata, fields="id").execute()
+        with alive_bar(len(child_names), title='Creating Contract Folders...') as bar:
+            for folder in child_names:
+                child_metadata = {
+                   "name": folder,
+                   "mimeType": "application/vnd.google-apps.folder",
+                   "parents": [contract_id],
+                }
+                service.files().create(body=child_metadata, fields="id").execute()
+                bar()
     except HttpError as error:
         print(f"An error occurred creating Folder: {error}")
         return None
@@ -231,23 +243,26 @@ def create_flights(creds, id, flights, project):
             date_folders = []
             for folder_num in range(1, flights + 1):
                 date_folders.append("Date"+str(folder_num))
-            for index, date in enumerate(date_folders):
-                date_metadata = {
-                    "name": date,
-                    "mimeType": "application/vnd.google-apps.folder",
-                    "parents": [month_child_id],
-                }
-                date_child = service.files().create(body=date_metadata, fields="id").execute()
-                date_child_id = date_child.get("id")
-                date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[current_month] + " " + str(index + 1)]
-                for date_child in date_child_names:
-                    date_child_metadata = {
-                        "name": date_child,
-                        "mimeType": "application/vnd.google-apps.folder",
-                        "parents": [date_child_id],
+            with alive_bar(len(date_folders), title='Creating Flight Folders...') as bar:
+                for index, date in enumerate(date_folders):
+                    date_metadata = {
+                       "name": date,
+                       "mimeType": "application/vnd.google-apps.folder",
+                       "parents": [month_child_id],
                     }
-                    service.files().create(body=date_child_metadata, fields="id").execute()
-        else:
+                    date_child = service.files().create(body=date_metadata, fields="id").execute()
+                    bar()
+                    date_child_id = date_child.get("id")
+                    date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[current_month] + " " + str(index + 1)]
+                    for date_child in date_child_names:
+                        date_child_metadata = {
+                           "name": date_child,
+                           "mimeType": "application/vnd.google-apps.folder",
+                           "parents": [date_child_id],
+                        }
+                        service.files().create(body=date_child_metadata, fields="id").execute()
+                
+        elif flights == 1:
             date_metadata = {
                 "name": "Date1",
                 "mimeType": "application/vnd.google-apps.folder",
@@ -256,13 +271,15 @@ def create_flights(creds, id, flights, project):
             date_child = service.files().create(body=date_metadata, fields="id").execute()
             date_child_id = date_child.get("id")
             date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[current_month] + " " + str(1)]
-            for date_child in date_child_names:
-                date_child_metadata = {
-                    "name": date_child,
-                    "mimeType": "application/vnd.google-apps.folder",
-                    "parents": [date_child_id],
-                }
-                service.files().create(body=date_child_metadata, fields="id").execute()
+            with alive_bar(len(date_child_names), title='Creating Flight Folders...') as bar:
+                for date_child in date_child_names:
+                    date_child_metadata = {
+                       "name": date_child,
+                       "mimeType": "application/vnd.google-apps.folder",
+                       "parents": [date_child_id],
+                    }
+                    service.files().create(body=date_child_metadata, fields="id").execute()
+                    bar()
 
     except HttpError as error:
         print(f"An error occurred creating Folder: {error}")
@@ -272,3 +289,4 @@ if __name__ == "__main__":
     creds = drive_auth()
     input_vars = accept_user_input()
     create_project(creds,input_vars)
+    print("Finished")
