@@ -1,10 +1,9 @@
+"""Python Google Drive Automation for Creating FirstLook Project Folders"""
 import os.path
-
-# from pprint import pprint
-from alive_progress import alive_bar;
-from datetime import datetime
 import calendar
+from datetime import datetime
 import sys
+from alive_progress import alive_bar;
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
