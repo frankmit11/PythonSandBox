@@ -140,15 +140,17 @@ def create_project(creds, user_input):
     """Create Project Folder Function
     """
     print("Creating Project Metadata....")
-    client = sub_folder_search(creds, 'Firstlook Services', user_input.client)
-    client_name = client[0].get("name")
-    sector = sub_folder_search(creds, client_name, user_input.sector)
-    sector_id = sector[0].get("id")
+    client_folder = sub_folder_search(creds, 'Firstlook Services', 'Client')
+    client_folder_name = client_folder[0].get("name")
+    sector = sub_folder_search(creds,  client_folder_name, user_input.sector)
+    sector_folder_name = sector[0].get("name")
+    client = sub_folder_search(creds, sector_folder_name, user_input.client)
+    client_id = client[0].get("id")
     print("Project Metadata created")
     try:
         service = build("drive", "v3", credentials=creds)
         project_metadata = {
-            "parents": [sector_id],
+            "parents": [client_id],
             "name": user_input.project,
             "mimeType": "application/vnd.google-apps.folder",
         }
