@@ -122,9 +122,6 @@ def sub_folder_search(creds, parent_id, sub_folder_name):
             if not sub_folder:
                 print("ERROR: " + sub_folder_name + " was not found in " + parent_id)
                 sys.exit(1)
-            #   for folder in response.get("files"):
-            #     # Process change
-            #     print(f'Found folder: {folder.get("name")}, {folder.get("id")}')
             page_token = response.get("nextPageToken", None)
             sub_folders.extend(response.get("files", []))
             if page_token is None:
@@ -238,7 +235,7 @@ def create_flights(creds, id, flights, project):
         if flights > 1:
             flight_counter = 0
             with alive_bar(flights, title='Creating Flight Folders...') as bar:
-               for folder_num in range(1, flights + 1):
+                for folder_num in range(1, flights + 1):
                     if flight_counter == 0:
                         month_metadata = {
                             "name": calendar.month_name[month] + " Flights",
@@ -300,7 +297,6 @@ def create_flights(creds, id, flights, project):
     except HttpError as error:
         print(f"An error occurred creating Folder: {error}")
         return None
-    
 if __name__ == "__main__":
     creds = drive_auth()
     input_vars = accept_user_input()
