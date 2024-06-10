@@ -3,7 +3,7 @@ import os.path
 import calendar
 from datetime import datetime
 import sys
-from alive_progress import alive_bar;
+from alive_progress import alive_bar
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -234,37 +234,50 @@ def create_flights(creds, id, flights, project):
         # pylint: disable=maybe-no-member
         parent_flight = service.files().create(body=flights_metadata, fields="id").execute()
         parent_flight_id = parent_flight.get("id")
-        current_month = datetime.now().month
+        month = datetime.now().month
         if flights > 1:
-            month_metadata = {
-                "name": calendar.month_name[current_month] + " Flights",
-                "mimeType": "application/vnd.google-apps.folder",
-                "parents": [parent_flight_id],
-            }
-            month_child = service.files().create(body=month_metadata, fields="id").execute()
-            month_child_id = month_child.get("id")
-            date_folders = []
-            for folder_num in range(1, flights + 1):
-                date_folders.append("Date"+str(folder_num))
-            with alive_bar(len(date_folders), title='Creating Flight Folders...') as bar:
-                for index, date in enumerate(date_folders):
-                    date_metadata = {
-                       "name": date,
-                       "mimeType": "application/vnd.google-apps.folder",
-                       "parents": [month_child_id],
-                    }
-                    date_child = service.files().create(body=date_metadata, fields="id").execute()
-                    bar()
-                    date_child_id = date_child.get("id")
-                    date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[current_month] + " " + str(index + 1)]
-                    for date_child in date_child_names:
-                        date_child_metadata = {
-                           "name": date_child,
-                           "mimeType": "application/vnd.google-apps.folder",
-                           "parents": [date_child_id],
+            flight_counter = 0
+            with alive_bar(flights, title='Creating Flight Folders...') as bar:
+               for folder_num in range(1, flights + 1):
+                    if flight_counter == 0:
+                        month_metadata = {
+                            "name": calendar.month_name[month] + " Flights",
+                            "mimeType": "application/vnd.google-apps.folder",
+                            "parents": [parent_flight_id],
                         }
-                        service.files().create(body=date_child_metadata, fields="id").execute()
-                
+                        month_child = service.files().create(body=month_metadata, fields="id").execute()
+                        month_child_id = month_child.get("id")
+                    if month_child_id:
+                        flight_counter = flight_counter + 1
+                        date_metadata = {
+                            "name": "Date "+str(flight_counter),
+                            "mimeType": "application/vnd.google-apps.folder",
+                            "parents": [month_child_id],
+                        }
+                        date_child = service.files().create(body=date_metadata, fields="id").execute()
+                        date_child_id = date_child.get("id")
+                        date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[month] + " " + str(flight_counter)]
+                        for date_child in date_child_names:
+                            date_child_metadata = {
+                                "name": date_child,
+                                "mimeType": "application/vnd.google-apps.folder",
+                                "parents": [date_child_id],
+                            }
+                            service.files().create(body=date_child_metadata, fields="id").execute()
+                    if flight_counter == 2:
+                        month = month + 1
+                        flight_counter = 0
+                    if month == 13 and folder_num != flights and flight_counter == 0:
+                        current_year = current_year + 1
+                        year_metadata = {
+                            "parents": [id],
+                            "name": str(current_year) + " Flights",
+                            "mimeType": "application/vnd.google-apps.folder",
+                        }
+                        parent_flight = service.files().create(body=year_metadata, fields="id").execute()
+                        parent_flight_id = parent_flight.get("id")
+                        month = 1
+                    bar()
         elif flights == 1:
             date_metadata = {
                 "name": "Date1",
@@ -273,7 +286,7 @@ def create_flights(creds, id, flights, project):
             }
             date_child = service.files().create(body=date_metadata, fields="id").execute()
             date_child_id = date_child.get("id")
-            date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[current_month] + " " + str(1)]
+            date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[month] + " " + str(1)]
             with alive_bar(len(date_child_names), title='Creating Flight Folders...') as bar:
                 for date_child in date_child_names:
                     date_child_metadata = {
