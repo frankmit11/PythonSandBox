@@ -76,9 +76,9 @@ def get_parent_id(creds, name):
             response = (
               service.files()
               .list(
-                  q="mimeType = 'application/vnd.google-apps.folder' and name='{0}'".format(name),
+                  q="mimeType = 'application/vnd.google-apps.folder' and name='{0}' and sharedWithMe = true".format(name),
                   spaces="drive",
-                  fields="nextPageToken, files(id)",
+                  fields="nextPageToken, files(id, name)",
                   pageToken=page_token,
               )
               .execute()
@@ -98,10 +98,9 @@ def get_parent_id(creds, name):
 
     return parent_id
 
-def sub_folder_search(creds, parent_name, sub_folder_name):
+def sub_folder_search(creds, parent_id, sub_folder_name):
     """Get the folder ID for a child folder
     """
-    parent_id = get_parent_id(creds, parent_name)
     try:
         # create drive api client
         service = build("drive", "v3", credentials=creds)
@@ -121,7 +120,7 @@ def sub_folder_search(creds, parent_name, sub_folder_name):
             )
             sub_folder = response.get("files")
             if not sub_folder:
-                print("ERROR: " + sub_folder_name + " was not found in " + parent_name)
+                print("ERROR: " + sub_folder_name + " was not found in " + parent_id)
                 sys.exit(1)
             #   for folder in response.get("files"):
             #     # Process change
@@ -140,17 +139,20 @@ def create_project(creds, user_input):
     """Create Project Folder Function
     """
     print("Creating Project Metadata....")
-    client_folder = sub_folder_search(creds, 'Firstlook Services', 'Client')
-    client_folder_name = client_folder[0].get("name")
-    sector = sub_folder_search(creds,  client_folder_name, user_input.sector)
-    sector_folder_name = sector[0].get("name")
-    client = sub_folder_search(creds, sector_folder_name, user_input.client)
-    client_id = client[0].get("id")
+    starting_dir_id = get_parent_id(creds, 'FirstLook Companies')
+    fl_services_dir = sub_folder_search(creds, starting_dir_id, 'FirstLook Services')
+    fl_services_id = fl_services_dir[0].get("id")
+    clients_dir = sub_folder_search(creds, fl_services_id , 'Clients')
+    clients_dir_id = clients_dir[0].get("id")
+    sector_dir = sub_folder_search(creds,  clients_dir_id, user_input.sector)
+    sector_dir_id = sector_dir[0].get("id")
+    input_client_dir = sub_folder_search(creds, sector_dir_id, user_input.client)
+    input_client_id = input_client_dir[0].get("id")
     print("Project Metadata created")
     try:
         service = build("drive", "v3", credentials=creds)
         project_metadata = {
-            "parents": [client_id],
+            "parents": [input_client_id],
             "name": user_input.project,
             "mimeType": "application/vnd.google-apps.folder",
         }
