@@ -17,13 +17,14 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 class UserInput:
     """Object to capture User enterd values
     """
-    def __init__(self, client, sector, project, flights):
+    def __init__(self, client, sector, project, flights, flights_perMonth):
         self.client = client
         self.sector = sector
         self.project = project
         self.flights = flights
+        self.flights_perMonth = flights_perMonth
     def __repr__(self):
-        return "User Input cleint:% s sector:% s project:% s flights:% s  " % (self.client, self.sector, self.project, self.flights)
+        return "User Input client:% s sector:% s project:% s flights:% s flights per Month:% s " % (self.client, self.sector, self.project, self.flights, self.flights_perMonth)
 
 def drive_auth():
     """Authenticate with Drive API Project
@@ -61,7 +62,9 @@ def accept_user_input():
     print("Project: " + project)
     flights = input("Enter Number of Flights:")
     print("Flights: " + flights)
-    return UserInput(client, sector, project, int(flights))
+    flights_perMonth = input("Enter Number of Flights per Month:")
+    print("Flights per Month: " + flights_perMonth)
+    return UserInput(client, sector, project, int(flights), int(flights_perMonth))
 
 def get_parent_id(creds, name):
     """Return the file id for a folder (normally a parent folder)
@@ -87,7 +90,6 @@ def get_parent_id(creds, name):
             if not parent:
                 print("ERROR: " + name + " was not found" )
                 sys.exit(1)
-            parent_id = parent[0].get("id")
             page_token = response.get("nextPageToken", None)
             parents.extend(response.get("files", []))
             if page_token is None:
@@ -96,11 +98,13 @@ def get_parent_id(creds, name):
         print(f"An error occurred, cannot locate folder Firstlook Services: {error}")
         parent = None
 
-    return parent_id
+    return parent
 
-def sub_folder_search(creds, parent_id, sub_folder_name):
+def sub_folder_search(creds, parent, sub_folder_name):
     """Get the folder ID for a child folder
     """
+    parent_id = parent[0].get("id")
+    parent_name = parent[0].get("name")
     try:
         # create drive api client
         service = build("drive", "v3", credentials=creds)
@@ -120,7 +124,7 @@ def sub_folder_search(creds, parent_id, sub_folder_name):
             )
             sub_folder = response.get("files")
             if not sub_folder:
-                print("ERROR: " + sub_folder_name + " was not found in " + parent_id)
+                print("ERROR: " + sub_folder_name + " was not found in " + parent_name)
                 sys.exit(1)
             page_token = response.get("nextPageToken", None)
             sub_folders.extend(response.get("files", []))
@@ -136,14 +140,11 @@ def create_project(creds, user_input):
     """Create Project Folder Function
     """
     print("Creating Project Metadata....")
-    starting_dir_id = get_parent_id(creds, 'FirstLook Companies')
-    fl_services_dir = sub_folder_search(creds, starting_dir_id, 'FirstLook Services')
-    fl_services_id = fl_services_dir[0].get("id")
-    clients_dir = sub_folder_search(creds, fl_services_id , 'Clients')
-    clients_dir_id = clients_dir[0].get("id")
-    sector_dir = sub_folder_search(creds,  clients_dir_id, user_input.sector)
-    sector_dir_id = sector_dir[0].get("id")
-    input_client_dir = sub_folder_search(creds, sector_dir_id, user_input.client)
+    starting_dir = get_parent_id(creds, 'FirstLook Companies')
+    fl_services_dir = sub_folder_search(creds, starting_dir, 'FirstLook Services')
+    clients_dir = sub_folder_search(creds, fl_services_dir , 'Clients')
+    sector_dir = sub_folder_search(creds,  clients_dir, user_input.sector)
+    input_client_dir = sub_folder_search(creds, sector_dir, user_input.client)
     input_client_id = input_client_dir[0].get("id")
     print("Project Metadata created")
     try:
@@ -159,7 +160,7 @@ def create_project(creds, user_input):
         print(f"An error occurred creating Folder: {error}")
         return None
     print("Project " + user_input.project + " created")
-    create_flights(creds, project_id, user_input.flights, user_input.project)
+    create_flights(creds, project_id, user_input.flights, user_input.project, user_input.flights_perMonth)
     create_insurance(creds, project_id)
     create_contract(creds, project_id)
 
@@ -217,7 +218,7 @@ def create_contract(creds, id):
         print(f"An error occurred creating Folder: {error}")
         return None
 
-def create_flights(creds, id, flights, project):
+def create_flights(creds, id, flights, project, flights_perMonth):
     """Create Flights folder and children folders
     """
     current_year = datetime.now().year
@@ -253,7 +254,7 @@ def create_flights(creds, id, flights, project):
                         }
                         date_child = service.files().create(body=date_metadata, fields="id").execute()
                         date_child_id = date_child.get("id")
-                        date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[month] + " " + str(flight_counter)]
+                        date_child_names = ["Raw Photos", "Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[month] + " " + str(flight_counter)]
                         for date_child in date_child_names:
                             date_child_metadata = {
                                 "name": date_child,
@@ -261,7 +262,7 @@ def create_flights(creds, id, flights, project):
                                 "parents": [date_child_id],
                             }
                             service.files().create(body=date_child_metadata, fields="id").execute()
-                    if flight_counter == 2:
+                    if flight_counter == flights_perMonth:
                         month = month + 1
                         flight_counter = 0
                     if month == 13 and folder_num != flights and flight_counter == 0:
@@ -283,7 +284,7 @@ def create_flights(creds, id, flights, project):
             }
             date_child = service.files().create(body=date_metadata, fields="id").execute()
             date_child_id = date_child.get("id")
-            date_child_names = ["Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[month] + " " + str(1)]
+            date_child_names = ["Raw Photos", "Raw Footage", "Photos", "Video", "Photo Report " + project + " " + calendar.month_name[month] + " " + str(1)]
             with alive_bar(len(date_child_names), title='Creating Flight Folders...') as bar:
                 for date_child in date_child_names:
                     date_child_metadata = {
