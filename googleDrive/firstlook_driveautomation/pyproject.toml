@@ -1,0 +1,19 @@
+[project]
+name = "Firstlook_driveautomation"
+version = "1.0"
+description = "Python scripts that leverages the Google drive API to create folders for a given FirstLook project specs"
+requires-python = ">=3.8"
+
+dependencies = [
+    "alive-progress",
+    "google-api-python-client",
+    "google-auth-httplib2",
+    "google-auth-oauthlib",
+    "path"
+]
+
+[project.scripts]
+firstlookdrive = "firstlookdrive.cli:entrypoint"
+
+[tool.setuptools.package-data]
+"firstlookdrive" = ["auth/*"]

@@ -1,5 +1,4 @@
 """Python Google Drive Automation for Creating FirstLook Project Folders"""
-import os.path
 import calendar
 from datetime import datetime
 import sys
@@ -9,10 +8,15 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from pathlib import Path
+
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
+BASE_DIR = Path(__file__).resolve().parent
+AUTH_DIR = BASE_DIR / "auth"
+TOKEN_PATH = AUTH_DIR / "token.json"
 
 class UserInput:
     """Object to capture User enterd values
@@ -33,19 +37,22 @@ def drive_auth():
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if os.path.exists("./auth/token.json"):
-        creds = Credentials.from_authorized_user_file("./auth/token.json", SCOPES)
+    if TOKEN_PATH.exists():
+        creds = Credentials.from_authorized_user_file(
+            TOKEN_PATH,
+            SCOPES,
+        )
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-              "./auth/credentials.json", SCOPES
+              AUTH_DIR / "credentials.json", SCOPES
             )
             creds = flow.run_local_server(port=0)
       # Save the credentials for the next run
-        with open("./auth/token.json", "w", encoding="utf-8") as token:
+        with open(AUTH_DIR / "credentials.json", "w", encoding="utf-8") as token:
             token.write(creds.to_json())
     return creds
 
@@ -298,8 +305,13 @@ def create_flights(creds, id, flights, project, flights_perMonth):
     except HttpError as error:
         print(f"An error occurred creating Folder: {error}")
         return None
-if __name__ == "__main__":
+
+def main() -> int:
     creds = drive_auth()
     input_vars = accept_user_input()
-    create_project(creds,input_vars)
+    create_project(creds, input_vars)
     print("Finished")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
