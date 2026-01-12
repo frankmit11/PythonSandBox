@@ -52,7 +52,7 @@ def drive_auth():
             )
             creds = flow.run_local_server(port=0)
       # Save the credentials for the next run
-        with open(AUTH_DIR / "credentials.json", "w", encoding="utf-8") as token:
+        with open(AUTH_DIR / "token.json", "w", encoding="utf-8") as token:
             token.write(creds.to_json())
     return creds
 
