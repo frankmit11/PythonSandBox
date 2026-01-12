@@ -55,5 +55,8 @@ auth/
 # Python Built packages
 pythonPackageBuilds/
 
+# DS Store file
+.DS_Store
+
 # Python Virtual Environment
 .venv
